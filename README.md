@@ -1,139 +1,154 @@
-# decimal
+<p align="center">
+  <img alt="GoReleaser Logo" src="https://becker.software/env.png" height="140" />
+  <p align="center">A simple, zero-dependencies library to parse environment variables into structs.</p>
+</p>
 
-[![ci](https://github.com/shopspring/decimal/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/shopspring/decimal/actions/workflows/ci.yml)
-[![GoDoc](https://godoc.org/github.com/shopspring/decimal?status.svg)](https://godoc.org/github.com/shopspring/decimal) 
-[![Go Report Card](https://goreportcard.com/badge/github.com/shopspring/decimal)](https://goreportcard.com/report/github.com/shopspring/decimal)
+###### Installation
 
-Arbitrary-precision fixed-point decimal numbers in go.
+```bash
+go get github.com/caarlos0/env/v11
+```
 
-_Note:_ Decimal library can "only" represent numbers with a maximum of 2^31 digits after the decimal point.
+###### Getting started
 
-## Features
+```go
+type config struct {
+  Home string `env:"HOME"`
+}
 
- * The zero-value is 0, and is safe to use without initialization
- * Addition, subtraction, multiplication with no loss of precision
- * Division with specified precision
- * Database/sql serialization/deserialization
- * JSON and XML serialization/deserialization
+// parse
+var cfg config
+err := env.Parse(&cfg)
 
-## Install
+// parse with generics
+cfg, err := env.ParseAs[config]()
+```
 
-Run `go get github.com/shopspring/decimal`
+You can see the full documentation and list of examples at [pkg.go.dev](https://pkg.go.dev/github.com/caarlos0/env/v11).
 
-## Requirements 
+---
 
-Decimal library requires Go version `>=1.10`
+## Used and supported by
 
-## Documentation
-
-http://godoc.org/github.com/shopspring/decimal
-
+<p>
+  <a href="https://encore.dev">
+    <img src="https://user-images.githubusercontent.com/78424526/214602214-52e0483a-b5fc-4d4c-b03e-0b7b23e012df.svg" width="120px" alt="encore icon" />
+  </a>
+  <br/>
+  <br/>
+  <b>Encore – the platform for building Go-based cloud backends.</b>
+  <br/>
+</p>
 
 ## Usage
 
-```go
-package main
+### Caveats
 
-import (
-	"fmt"
-	"github.com/shopspring/decimal"
-)
+> [!CAUTION]
+>
+> _Unexported fields_ will be **ignored** by `env`.
+> This is by design and will not change.
 
-func main() {
-	price, err := decimal.NewFromString("136.02")
-	if err != nil {
-		panic(err)
-	}
+### Functions
 
-	quantity := decimal.NewFromInt(3)
+- `Parse`: parse the current environment into a type
+- `ParseAs`: parse the current environment into a type using generics
+- `ParseWithOptions`: parse the current environment into a type with custom options
+- `ParseAsithOptions`: parse the current environment into a type with custom options and using generics
+- `Must`: can be used to wrap `Parse.*` calls to panic on error
+- `GetFieldParams`: get the `env` parsed options for a type
+- `GetFieldParamsWithOptions`: get the `env` parsed options for a type with custom options
 
-	fee, _ := decimal.NewFromString(".035")
-	taxRate, _ := decimal.NewFromString(".08875")
+### Supported types
 
-	subtotal := price.Mul(quantity)
+Out of the box all built-in types are supported, plus a few others that are commonly used.
 
-	preTax := subtotal.Mul(fee.Add(decimal.NewFromFloat(1)))
+Complete list:
 
-	total := preTax.Mul(taxRate.Add(decimal.NewFromFloat(1)))
+- `bool`
+- `float32`
+- `float64`
+- `int16`
+- `int32`
+- `int64`
+- `int8`
+- `int`
+- `string`
+- `uint16`
+- `uint32`
+- `uint64`
+- `uint8`
+- `uint`
+- `time.Duration`
+- `time.Location`
+- `encoding.TextUnmarshaler`
+- `url.URL`
 
-	fmt.Println("Subtotal:", subtotal)                      // Subtotal: 408.06
-	fmt.Println("Pre-tax:", preTax)                         // Pre-tax: 422.3421
-	fmt.Println("Taxes:", total.Sub(preTax))                // Taxes: 37.482861375
-	fmt.Println("Total:", total)                            // Total: 459.824961375
-	fmt.Println("Tax rate:", total.Sub(preTax).Div(preTax)) // Tax rate: 0.08875
-}
-```
+Pointers, slices and slices of pointers, and maps of those types are also supported.
 
-## Alternative libraries
+You may also add custom parsers for your types.
 
-When working with decimal numbers, you might face problems this library is not perfectly suited for. 
-Fortunately, thanks to the wonderful community we have a dozen other libraries that you can choose from.  
-Explore other alternatives to find the one that best fits your needs :)  
+### Tags
 
-* [cockroachdb/apd](https://github.com/cockroachdb/apd) - arbitrary precision, mutable and rich API similar to `big.Int`, more performant than this library 
-* [alpacahq/alpacadecimal](https://github.com/alpacahq/alpacadecimal) - high performance, low precision (12 digits), fully compatible API with this library 
-* [govalues/decimal](https://github.com/govalues/decimal) - high performance, zero-allocation, low precision (19 digits)
-* [greatcloak/decimal](https://github.com/greatcloak/decimal) - fork focusing on billing and e-commerce web application related use cases, includes out-of-the-box BSON marshaling support
+The following tags are provided:
 
-## FAQ
+- `env`: sets the environment variable name and optionally takes the tag options described below
+- `envDefault`: sets the default value for the field
+- `envPrefix`: can be used in a field that is a complex type to set a prefix to all environment variables used in it
+- `envSeparator`: sets the character to be used to separate items in slices and maps (default: `,`)
+- `envKeyValSeparator`: sets the character to be used to separate keys and their values in maps (default: `:`)
 
-#### Why don't you just use float64?
+### `env` tag options
 
-Because float64 (or any binary floating point type, actually) can't represent
-numbers such as `0.1` exactly.
+Here are all the options available for the `env` tag:
 
-Consider this code: http://play.golang.org/p/TQBd4yJe6B You might expect that
-it prints out `10`, but it actually prints `9.999999999999831`. Over time,
-these small errors can really add up!
+- `,expand`: expands environment variables, e.g. `FOO_${BAR}`
+- `,file`: instructs that the content of the variable is a path to a file that should be read
+- `,init`: initialize nil pointers
+- `,notEmpty`: make the field errors if the environment variable is empty
+- `,required`: make the field errors if the environment variable is not set
+- `,unset`: unset the environment variable after use
 
-#### Why don't you just use big.Rat?
+### Parse Options
 
-big.Rat is fine for representing rational numbers, but Decimal is better for
-representing money. Why? Here's a (contrived) example:
+There are a few options available in the functions that end with `WithOptions`:
 
-Let's say you use big.Rat, and you have two numbers, x and y, both
-representing 1/3, and you have `z = 1 - x - y = 1/3`. If you print each one
-out, the string output has to stop somewhere (let's say it stops at 3 decimal
-digits, for simplicity), so you'll get 0.333, 0.333, and 0.333. But where did
-the other 0.001 go?
+- `Environment`: keys and values to be used instead of `os.Environ()`
+- `TagName`: specifies another tag name to use rather than the default `env`
+- `RequiredIfNoDef`: set all `env` fields as required if they do not declare `envDefault`
+- `OnSet`: allows to hook into the `env` parsing and do something when a value is set
+- `Prefix`: prefix to be used in all environment variables
+- `UseFieldNameByDefault`: defines whether or not `env` should use the field name by default if the `env` key is missing
+- `FuncMap`: custom parse functions for custom types
 
-Here's the above example as code: http://play.golang.org/p/lCZZs0w9KE
+### Documentation and examples
 
-With Decimal, the strings being printed out represent the number exactly. So,
-if you have `x = y = 1/3` (with precision 3), they will actually be equal to
-0.333, and when you do `z = 1 - x - y`, `z` will be equal to .334. No money is
-unaccounted for!
+Examples are live in [pkg.go.dev](https://pkg.go.dev/github.com/caarlos0/env/v11),
+and also in the [example test file](./example_test.go).
 
-You still have to be careful. If you want to split a number `N` 3 ways, you
-can't just send `N/3` to three different people. You have to pick one to send
-`N - (2/3*N)` to. That person will receive the fraction of a penny remainder.
+## Current state
 
-But, it is much easier to be careful with Decimal than with big.Rat.
+`env` is considered feature-complete.
 
-#### Why isn't the API similar to big.Int's?
+I do not intent to add any new features unless they really make sense, and are
+requested by many people.
 
-big.Int's API is built to reduce the number of memory allocations for maximal
-performance. This makes sense for its use-case, but the trade-off is that the
-API is awkward and easy to misuse.
+Eventual bug fixes will keep being merged.
 
-For example, to add two big.Ints, you do: `z := new(big.Int).Add(x, y)`. A
-developer unfamiliar with this API might try to do `z := a.Add(a, b)`. This
-modifies `a` and sets `z` as an alias for `a`, which they might not expect. It
-also modifies any other aliases to `a`.
+## Badges
 
-Here's an example of the subtle bugs you can introduce with big.Int's API:
-https://play.golang.org/p/x2R_78pa8r
+[![Release](https://img.shields.io/github/release/caarlos0/env.svg?style=for-the-badge)](https://github.com/goreleaser/goreleaser/releases/latest)
+[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=for-the-badge)](/LICENSE.md)
+[![Build status](https://img.shields.io/github/actions/workflow/status/caarlos0/env/build.yml?style=for-the-badge&branch=main)](https://github.com/caarlos0/env/actions?workflow=build)
+[![Codecov branch](https://img.shields.io/codecov/c/github/caarlos0/env/main.svg?style=for-the-badge)](https://codecov.io/gh/caarlos0/env)
+[![Go docs](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](http://godoc.org/github.com/caarlos0/env/v11)
+[![Powered By: GoReleaser](https://img.shields.io/badge/powered%20by-goreleaser-green.svg?style=for-the-badge)](https://github.com/goreleaser)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=for-the-badge)](https://conventionalcommits.org)
 
-In contrast, it's difficult to make such mistakes with decimal. Decimals
-behave like other go numbers types: even though `a = b` will not deep copy
-`b` into `a`, it is impossible to modify a Decimal, since all Decimal methods
-return new Decimals and do not modify the originals. The downside is that
-this causes extra allocations, so Decimal is less performant.  My assumption
-is that if you're using Decimals, you probably care more about correctness
-than performance.
+## Related projects
 
-## License
+- [envdoc](https://github.com/g4s8/envdoc) - generate documentation for environment variables from `env` tags
 
-The MIT License (MIT)
+## Stargazers over time
 
-This is a heavily modified fork of [fpd.Decimal](https://github.com/oguzbilgic/fpd), which was also released under the MIT License.
+[![Stargazers over time](https://starchart.cc/caarlos0/env.svg)](https://starchart.cc/caarlos0/env)
